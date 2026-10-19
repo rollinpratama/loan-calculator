@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loan Calculator</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f5f7;
+      color: #222;
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+      margin: 0;
+    }
+    .card {
+      background: #fff;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      width: 100%;
+      max-width: 560px;
+    }
+    h1 { font-size: 1.4rem; margin-top: 0; }
+    label { display: block; margin-top: 14px; font-weight: 600; }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      margin-top: 4px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    #result { margin-top: 20px; font-size: 1.1rem; }
+    .error { color: #c00; }
+    .table-wrap { max-height: 400px; overflow: auto; margin-top: 12px; border: 1px solid #ddd; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
+    th { position: sticky; top: 0; background: #f0f2f5; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Loan Payment Calculator</h1>
+    <form id="loan-form">
+      <label for="amount">Loan amount</label>
+      <input id="amount" type="number" min="0" step="any" placeholder="e.g. 20000" required>
+
+      <label for="rate">Annual interest rate (%)</label>
+      <input id="rate" type="number" min="0" step="any" placeholder="e.g. 5.5" required>
+
+      <label for="months">Term (months)</label>
+      <input id="months" type="number" min="1" step="1" placeholder="e.g. 60" required>
+
+      <button type="submit">Calculate</button>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("loan-form");
+    const result = document.getElementById("result");
+    const money = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const principal = parseFloat(document.getElementById("amount").value);
+      const annualRate = parseFloat(document.getElementById("rate").value);
+      const months = parseInt(document.getElementById("months").value, 10);
+
+      if (!(principal > 0) || !(annualRate >= 0) || !(months > 0)) {
+        result.innerHTML = '<p class="error">Please enter a positive amount, a rate of 0 or more, and at least 1 month.</p>';
+        return;
+      }
+
+      const monthlyRate = annualRate / 100 / 12;
+      const payment = monthlyRate === 0
+        ? principal / months
+        : principal * monthlyRate / (1 - Math.pow(1 + monthlyRate, -months));
+
+      const totalPaid = payment * months;
+      const totalInterest = totalPaid - principal;
+
+      // Build the amortization schedule: each month, interest is charged on the
+      // remaining balance and the rest of the payment reduces the balance.
+      let balance = principal;
+      let rows = "";
+      for (let month = 1; month <= months; month++) {
+        const interest = balance * monthlyRate;
+        let toPrincipal = payment - interest;
+        // Pay off whatever is left in the final month so tiny rounding leftovers don't show.
+        if (month === months) toPrincipal = balance;
+        balance -= toPrincipal;
+        if (month === months) balance = 0;
+
+        rows +=
+          `<tr><td>${month}</td>` +
+          `<td>${money.format(interest + toPrincipal)}</td>` +
+          `<td>${money.format(interest)}</td>` +
+          `<td>${money.format(toPrincipal)}</td>` +
+          `<td>${money.format(balance)}</td></tr>`;
+      }
+
+      result.innerHTML =
+        `<p><strong>Monthly payment:</strong> ${money.format(payment)}</p>` +
+        `<p>Total paid: ${money.format(totalPaid)}</p>` +
+        `<p>Total interest: ${money.format(totalInterest)}</p>` +
+        `<h2 style="font-size:1.1rem;margin-bottom:0">Amortization schedule</h2>` +
+        `<div class="table-wrap"><table>` +
+        `<thead><tr><th>Month</th><th>Payment</th><th>Interest</th><th>Principal</th><th>Balance</th></tr></thead>` +
+        `<tbody>${rows}</tbody></table></div>`;
+    });
+  </script>
+</body>
+</html>
